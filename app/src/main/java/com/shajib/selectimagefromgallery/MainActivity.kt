@@ -6,15 +6,40 @@ import android.content.Intent
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat.requestPermissions
 import androidx.core.content.ContextCompat.checkSelfPermission
+import com.ablanco.zoomy.Zoomy
 import com.shajib.selectimagefromgallery.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val REQUEST_CODE_STORAGE_PERMISSION = 1000
-    private val REQUEST_CODE_GALLERY = 1001
+
+    private val activityLauncher = registerForActivityResult(StartActivityForResult()) { result ->
+        result.data?.data?.let { imageUri ->
+            try {
+                val imageBitmap = MediaStore.Images.Media.getBitmap(contentResolver, imageUri)
+                binding.ivImage.setImageBitmap(imageBitmap)
+
+                setupZoom(binding.ivImage)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun setupZoom(view: View) {
+        val builder = Zoomy.Builder(this)
+            .target(view)
+            .animateZooming(true)
+            .enableImmersiveMode(true)
+        builder.register()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,23 +78,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //select the image and convert to bitmap and set to imageView
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CODE_GALLERY && resultCode == RESULT_OK) {
-            data?.data?.let { imageUri ->
-                try {
-                    val imageBitmap = MediaStore.Images.Media.getBitmap(contentResolver, imageUri)
-                    runOnUiThread {
-                        binding.ivImage.setImageBitmap(imageBitmap)
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-    }
     private fun selectImageFromGallery() {
-        startActivityForResult(Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI), REQUEST_CODE_GALLERY)
+        activityLauncher.launch(Intent(Intent.ACTION_PICK, EXTERNAL_CONTENT_URI))
     }
 }
